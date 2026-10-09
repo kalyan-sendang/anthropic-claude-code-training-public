@@ -23,7 +23,30 @@ export const EXPORT_COLUMNS = [
   "currency",
 ] as const
 
+export const DEFAULT_EXPORT_COLUMNS = EXPORT_COLUMNS.filter(
+  (column) => column !== "last4",
+) as readonly ExportColumn[]
+
 export type ExportColumn = (typeof EXPORT_COLUMNS)[number]
+
+export function parseExportColumns(raw: string | null): ExportColumn[] | null {
+  if (raw == null) return [...DEFAULT_EXPORT_COLUMNS]
+
+  const parsed = raw
+    .split(",")
+    .map((column) => column.trim())
+    .filter(Boolean)
+
+  if (parsed.length === 0) return []
+
+  const columns: ExportColumn[] = []
+  for (const column of parsed) {
+    if (!(EXPORT_COLUMNS as readonly string[]).includes(column)) return null
+    if (!columns.includes(column as ExportColumn)) columns.push(column as ExportColumn)
+  }
+
+  return columns
+}
 
 function escapeCell(value: string): string {
   if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`
@@ -57,8 +80,10 @@ function cell(payment: Payment, column: ExportColumn): string {
 
 export function toCsv(
   payments: Payment[],
-  columns: readonly ExportColumn[] = EXPORT_COLUMNS,
+  columns: readonly ExportColumn[] = DEFAULT_EXPORT_COLUMNS,
 ): string {
+  if (columns.length === 0) return ""
+
   const header = columns.join(",")
   const rows = payments.map((payment) =>
     columns.map((column) => escapeCell(cell(payment, column))).join(","),
@@ -66,6 +91,7 @@ export function toCsv(
   return [header, ...rows].join("\n")
 }
 
-export function exportFilename(date = new Date()): string {
-  return `payments-${date.toISOString().slice(0, 10)}.csv`
+export function exportFilename(date = new Date(), scope?: string): string {
+  if (!scope) return `payments-${date.toISOString().slice(0, 10)}.csv`
+  return `payments-${scope}-${date.toISOString().slice(0, 10)}.csv`
 }

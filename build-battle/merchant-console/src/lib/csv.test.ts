@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { Payment } from "@/data/types"
-import { EXPORT_COLUMNS, exportFilename, toCsv } from "./csv"
+import { DEFAULT_EXPORT_COLUMNS, EXPORT_COLUMNS, exportFilename, toCsv } from "./csv"
 
 /**
  * The export is the file ops hands to a merchant, so a broken cell is a
@@ -23,8 +23,24 @@ const payment: Payment = {
 }
 
 describe("toCsv", () => {
-  it("writes a header row followed by one row per payment", () => {
+  it("excludes card last-four by default", () => {
     const lines = toCsv([payment]).split("\n")
+    expect(lines[0]).toBe(DEFAULT_EXPORT_COLUMNS.join(","))
+    expect(lines[0]).not.toContain("last4")
+  })
+
+  it("writes a subset of columns in the requested order", () => {
+    expect(toCsv([payment], ["description", "merchant", "amount"])).toBe(
+      ["description,merchant,amount", "Order 1180,Lumen Coffee Roasters,$250.00"].join("\n"),
+    )
+  })
+
+  it("returns an empty string when no columns are selected", () => {
+    expect(toCsv([payment], [])).toBe("")
+  })
+
+  it("writes a header row followed by one row per payment", () => {
+    const lines = toCsv([payment], EXPORT_COLUMNS).split("\n")
     expect(lines).toHaveLength(2)
     expect(lines[0]).toBe(EXPORT_COLUMNS.join(","))
   })
